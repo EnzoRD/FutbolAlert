@@ -1,0 +1,4 @@
+requests==2.32.0
+twilio==9.4.4
+python-dotenv==1.0.1
+pytz==2024.2
