@@ -1,0 +1,9 @@
+"id": 61,
+"name": "Chelsea FC",
+"shortName": "Chelsea",
+"tla": "CHE",
+
+ "id": 78,
+"name": "Club Atlético de Madrid",
+"shortName": "Atleti",
+"tla": "ATL",

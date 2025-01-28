@@ -1,12 +1,29 @@
-
+from twilio.rest import Client
 import requests
 from datetime import datetime, timedelta
 import pytz
 import sys
+from dotenv import load_dotenv
+import os
+
+# Cargar las variables de entorno desde el archivo .env
+dotenv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+# Cargar el archivo .env desde la ruta especificada
+load_dotenv(dotenv_path, override=True)
+
+
 sys.stdout.reconfigure(encoding='utf-8')
 
-# Tu clave API
-API_KEY = '0e04b607776d479681b2ed1e3d44e64e'
+# Configuración de Twilio desde el archivo .env
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
+TWILIO_WHATSAPP_NUMBER = os.getenv('TWILIO_WHATSAPP_NUMBER')
+TO_WHATSAPP_NUMBER = os.getenv('TO_WHATSAPP_NUMBER')
+API_KEY = os.getenv('API_KEY')
+
+
+# Configuración de Twilio
+client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 # IDs de los equipos
 TEAM_IDS = {
@@ -28,7 +45,6 @@ params = {
     'dateTo': next_week
 }
 
-# Encabezados de autenticación
 headers = {
     'X-Auth-Token': API_KEY
 }
@@ -37,10 +53,13 @@ headers = {
 argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
 
 def normalize_text(text):
-    """Corrige problemas de encoding en nombres de equipos"""
-    if isinstance(text, str):  
-        return text.encode('ISO-8859-1', errors='replace').decode('utf-8', errors='replace')  
+    """Reemplaza caracteres especiales y normaliza la codificación"""
+    import unicodedata
+    if isinstance(text, str):
+        text = text.encode("utf-8").decode("utf-8")  # Asegurar UTF-8
+        text = unicodedata.normalize("NFKC", text)  # Normalizar caracteres
     return text
+
 
 def convert_utc_to_argentina(utc_time):
     """Convierte el horario UTC a Argentina (UTC-3)"""
@@ -75,6 +94,19 @@ def get_upcoming_matches(team_name, team_id):
         print(f"❌ Ocurrió un error con {team_name}: {e}")
         return []
 
+def send_whatsapp_message(body):
+    """Envía un mensaje de WhatsApp usando Twilio"""
+    try:
+        message = client.messages.create(
+            from_=TWILIO_WHATSAPP_NUMBER,
+            to=TO_WHATSAPP_NUMBER,
+            body=body
+        )
+        print(f"Mensaje enviado con SID: {message.sid}")
+    except Exception as e:
+        print(f"❌ Error al enviar el mensaje: {e}")
+
+
 if __name__ == '__main__':
     all_matches = []
 
@@ -86,12 +118,14 @@ if __name__ == '__main__':
     # Ordenar los partidos por fecha
     all_matches.sort(key=lambda x: x["fecha"])
 
-    # Mostrar resultados
+    # Preparar el mensaje
     if all_matches:
-        print(f"\n📅 Partidos programados desde {today} hasta {next_week}:")
+        message_body = f"📅 Partidos programados desde {today} hasta {next_week}:\n"
         for match in all_matches:
-            print(f"⚽ {match['equipo']} -> {match['local']} vs {match['visitante']} - Fecha (ARG): {match['fecha']}")
+            message_body += f"⚽ {match['equipo']} -> {match['local']} vs {match['visitante']} - Fecha (ARG): {match['fecha']}\n"
     else:
-        print("\n❌ No hay partidos programados en la próxima semana.")
-
+        message_body = "❌ No hay partidos programados en la próxima semana."
+    
+    # Enviar el mensaje por WhatsApp
+    send_whatsapp_message(message_body)
 
